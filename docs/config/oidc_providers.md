@@ -80,6 +80,54 @@ Relative paths are resolved against the directory holding `config.yaml`.
   `unlisted_frontend_origin`, `consent_template_path`: as above, for this
   provider only, replacing any top-level default.
 
+## Example: defaults and overrides
+
+This file configures two providers.  Only `staff` overrides any defaults:
+
+```yaml
+oidc_client_pem_path: "./cacert.pem"
+allowed_frontend_origins:
+  - "https://chat.example.com"
+
+auth_systems:
+
+  - id: "public"
+    title: "Sign in with Example ID"
+    server_url: "https://id.example.com/realms/public"
+    client_id: "soliplex-public"
+    token_validation_pem: |
+        -----BEGIN PUBLIC KEY-----
+        MII..AQAB
+        -----END PUBLIC KEY-----
+
+  - id: "staff"
+    title: "Staff sign-in"
+    server_url: "https://sso.example.com/realms/staff"
+    client_id: "soliplex-staff"
+    client_secret: "secret:STAFF_CLIENT_SECRET"
+    token_validation_pem: |
+        -----BEGIN PUBLIC KEY-----
+        MII..AQAB
+        -----END PUBLIC KEY-----
+    oidc_client_pem_path: "./staff-cacert.pem"
+    allowed_frontend_origins: []
+    unlisted_frontend_origin: "deny-all"
+```
+
+With this file in `oidc/`, each provider ends up with these settings:
+
+| Setting | `public` | `staff` |
+| --- | --- | --- |
+| `oidc_client_pem_path` | `oidc/cacert.pem` (default) | `oidc/staff-cacert.pem` |
+| `allowed_frontend_origins` | `https://chat.example.com` (default) | none |
+| `unlisted_frontend_origin` | `consent-required` (built-in default) | `deny-all` |
+| consent template | `oidc/consent.html.mako` if present, else packaged | never shown |
+
+So `public` supports a hosted web client at `https://chat.example.com`
+with no prompt, and asks users to confirm any other frontend.  `staff`
+accepts only frontends on the backend's own origin, and refuses every
+other origin without asking.
+
 ## Frontend origins
 
 A web frontend starts sign-in by sending the user's browser to

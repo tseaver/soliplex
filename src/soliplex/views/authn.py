@@ -57,9 +57,6 @@ _EVIL_CHARS = frozenset("\\\x7f") | {chr(i) for i in range(32)}
 # No other non-relative schemes allowed.
 _ALLOWED_SCHEMES = frozenset(("http", "https"))
 
-# No other non-relative schemes allowed.
-_LOOPBACK_NETLOCS = frozenset(("localhost", "127.0.0.1/8", "[::1]"))
-
 
 def _classify_return_to(
     return_to: str,
