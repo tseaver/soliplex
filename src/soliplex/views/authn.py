@@ -2,6 +2,7 @@
 
 import dataclasses
 import enum
+import ipaddress
 import pathlib
 import secrets
 import typing
@@ -33,6 +34,17 @@ def _scheme_netloc(url: str) -> tuple[str, str]:
     return scheme, netloc.lower()
 
 
+def _is_loopback(host: str) -> bool:
+    """Is 'host' one browsers treat as the local machine?"""
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:  # a name, not an address literal
+        return False
+
+
 class ReturnTo(enum.StrEnum):
     MALFORMED = "malformed"
     UNLISTED = "unlisted"
@@ -44,6 +56,9 @@ _EVIL_CHARS = frozenset("\\\x7f") | {chr(i) for i in range(32)}
 
 # No other non-relative schemes allowed.
 _ALLOWED_SCHEMES = frozenset(("http", "https"))
+
+# No other non-relative schemes allowed.
+_LOOPBACK_NETLOCS = frozenset(("localhost", "127.0.0.1/8", "[::1]"))
 
 
 def _classify_return_to(
@@ -85,8 +100,14 @@ def _classify_return_to(
 
     if (scheme, netloc) in trusted:
         return ReturnTo.TRUSTED
-    else:
-        return ReturnTo.UNLISTED
+
+    host = urllib_parse.urlsplit(return_to).hostname
+
+    # 'http' but not in the 'trusted' check must only be loopback.
+    if scheme == "http" and not _is_loopback(host):
+        return ReturnTo.MALFORMED
+
+    return ReturnTo.UNLISTED
 
 
 def _get_authsystem_config(

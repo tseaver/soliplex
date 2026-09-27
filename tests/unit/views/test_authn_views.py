@@ -63,6 +63,25 @@ def test__scheme_netloc(url, exp_scheme, exp_netloc):
     assert found_netloc == exp_netloc
 
 
+@pytest.mark.parametrize(
+    "host, expected",
+    [
+        ("localhost", True),
+        ("myapp.localhost", True),
+        ("otherhost", False),
+        ("127.0.0.1", True),
+        ("127.8.9.10", True),
+        ("::1", True),
+        ("127.8", False),
+    ],
+)
+def test__is_loopback(host, expected):
+
+    found = authn_views._is_loopback(host)
+
+    assert found is expected
+
+
 _RT = authn_views.ReturnTo
 _CONTROL_CHARS_MALFORMED = [(chr(i), _RT.MALFORMED) for i in range(32)]
 
@@ -78,7 +97,9 @@ _CONTROL_CHARS_MALFORMED = [(chr(i), _RT.MALFORMED) for i in range(32)]
     ]
     + _CONTROL_CHARS_MALFORMED
     + [
+        ("http://evil.example/", _RT.MALFORMED),
         ("evil.com", _RT.MALFORMED),
+        ("http://127.1/", _RT.MALFORMED),
         ("foo/bar", _RT.MALFORMED),
         ("./x", _RT.MALFORMED),
         ("../x", _RT.MALFORMED),
@@ -90,9 +111,13 @@ _CONTROL_CHARS_MALFORMED = [(chr(i), _RT.MALFORMED) for i in range(32)]
         ("https:evil.com", _RT.MALFORMED),
     ]
     + [
-        ("http://example.com", _RT.UNLISTED),
-        ("https://example.com", _RT.UNLISTED),
-        ("http://unlisted.example.com", _RT.UNLISTED),
+        ("http://localhost:9999/", _RT.UNLISTED),
+        ("http://app.localhost:3000/", _RT.UNLISTED),
+        ("http://127.0.0.1:9999/", _RT.UNLISTED),
+        ("http://127.8.9.10/", _RT.UNLISTED),
+        ("http://[::1]:9999/", _RT.UNLISTED),
+        ("https://evil.example", _RT.UNLISTED),
+        ("https://unlisted.example.com", _RT.UNLISTED),
     ]
     + [
         ("/", _RT.TRUSTED),
